@@ -45,11 +45,6 @@ public final class BindRow extends SettingRow {
    }
 
    @Override
-   public boolean capturingInput() {
-      return this.display.isListening();
-   }
-
-   @Override
    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
       if (!this.display.isListening()) {
          return false;
