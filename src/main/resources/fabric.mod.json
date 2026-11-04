@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "nightclient",
+  "version": "1.1",
+  "name": "NightClient",
+  "description": "NightClient — Minecraft 1.20.1.",
+  "authors": [
+    "olivia"
+  ],
+  "license": "ARR",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dev.nightclient.NightClient"
+    ]
+  },
+  "mixins": [
+    "nightclient.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.14.21",
+    "minecraft": "~1.20.1",
+    "java": ">=17",
+    "fabric-api": "*"
+  }
+}

@@ -1,0 +1,185 @@
+package dev.nightclient.gui;
+
+import dev.nightclient.NightClient;
+import dev.nightclient.gui.rows.SettingRow;
+import dev.nightclient.module.Module;
+import dev.nightclient.module.setting.Setting;
+import dev.nightclient.render.Animation;
+import dev.nightclient.render.Render2D;
+import dev.nightclient.render.Theme;
+import dev.nightclient.util.ConfigManager;
+import java.util.ArrayList;
+import java.util.List;
+import net.minecraft.client.gui.DrawContext;
+
+/** ThunderHack tarzı modül kartı: sol tık = aç/kapa, sağ tık = ayarları aç. */
+public final class ModuleButton {
+   public static final int HEADER = 22;
+   private final Module module;
+   private final List<SettingRow> rows = new ArrayList<>();
+   private final Animation expand = new Animation(0.0F);
+   private final Animation hover = new Animation(0.0F);
+   private final Animation enable;
+   private float x;
+   private float y;
+   private float width;
+   private boolean expanded;
+
+   public ModuleButton(Module module) {
+      this.module = module;
+      this.enable = new Animation(module.isEnabled() ? 1.0F : 0.0F);
+
+      for (Setting<?> setting : module.settings()) {
+         this.rows.add(SettingRow.create(setting, this));
+      }
+   }
+
+   public Module module() {
+      return this.module;
+   }
+
+   public void setBounds(float x, float y, float width) {
+      this.x = x;
+      this.y = y;
+      this.width = width;
+   }
+
+   public float y() {
+      return this.y;
+   }
+
+   public float height() {
+      return (float)HEADER + this.expand.get();
+   }
+
+   private float settingsHeight() {
+      float height = 0.0F;
+
+      for (SettingRow row : this.rows) {
+         if (row.setting().isVisible()) {
+            height += 22.0F;
+         }
+      }
+
+      return height > 0.0F ? height + 4.0F : 0.0F;
+   }
+
+   public boolean isHeaderHovered(double mx, double my) {
+      return mx >= (double)this.x && mx <= (double)(this.x + this.width) && my >= (double)this.y && my < (double)(this.y + (float)HEADER);
+   }
+
+   public boolean capturingInput() {
+      for (SettingRow row : this.rows) {
+         if (row.setting().isVisible() && row.capturingInput()) {
+            return true;
+         }
+      }
+
+      return false;
+   }
+
+   public void render(DrawContext context, int mouseX, int mouseY, float delta, float alpha) {
+      float h = this.hover.animate(this.isHeaderHovered((double)mouseX, (double)mouseY) ? 1.0F : 0.0F, 14.0F);
+      float on = this.enable.animate(this.module.isEnabled() ? 1.0F : 0.0F, 12.0F);
+      this.expand.animate(this.expanded ? this.settingsHeight() : 0.0F, 14.0F);
+      float total = this.height();
+      int base = Theme.mix(0xFF17171E, 0xFF1E1E27, h);
+      Render2D.roundedRect(context, this.x, this.y, this.width, total, 6.0F, Theme.scaleAlpha(base, alpha));
+      if (on > 0.01F) {
+         Render2D.roundedRect(context, this.x, this.y, this.width, total, 6.0F, Theme.scaleAlpha(Theme.withAlpha(Theme.ACCENT, (int)(38.0F * on)), alpha));
+         Render2D.roundedRect(context, this.x, this.y + 4.0F, 2.0F, (float)HEADER - 8.0F, 1.0F, Theme.scaleAlpha(Theme.ACCENT, alpha * on));
+      }
+
+      int nameColor = Theme.mix(Theme.mix(0xFF8A8A97, 0xFFE8E8F0, h), Theme.ACCENT, on);
+      Render2D.text(context, this.module.getName(), this.x + 9.0F, this.y + 7.0F, Theme.scaleAlpha(nameColor, alpha));
+      if (!this.rows.isEmpty()) {
+         float cx = this.x + this.width - 11.0F;
+         float cy = this.y + 11.0F;
+         int dot = Theme.scaleAlpha(this.expanded ? Theme.ACCENT : Theme.mix(0xFF5A5A66, 0xFFE8E8F0, h), alpha);
+         Render2D.circle(context, cx, cy - 3.5F, 1.4F, dot);
+         Render2D.circle(context, cx, cy, 1.4F, dot);
+         Render2D.circle(context, cx, cy + 3.5F, 1.4F, dot);
+      }
+
+      if (this.expand.get() > 0.5F) {
+         context.enableScissor((int)this.x, (int)(this.y + (float)HEADER), (int)(this.x + this.width), (int)(this.y + total));
+         context.fill((int)(this.x + 8.0F), (int)(this.y + (float)HEADER - 1.0F), (int)(this.x + this.width - 8.0F), (int)(this.y + (float)HEADER), Theme.scaleAlpha(0xFF2A2A35, alpha));
+         float rowY = this.y + (float)HEADER + 2.0F;
+
+         for (SettingRow row : this.rows) {
+            if (row.setting().isVisible()) {
+               row.setBounds(this.x + 9.0F, rowY, this.width - 18.0F);
+               row.render(context, mouseX, mouseY, delta);
+               rowY += 22.0F;
+            }
+         }
+
+         context.disableScissor();
+      }
+   }
+
+   public boolean mouseClicked(double mouseX, double mouseY, int button) {
+      if (this.expanded && mouseY > (double)(this.y + (float)HEADER) && mouseY < (double)(this.y + this.height())) {
+         for (SettingRow row : this.rows) {
+            if (row.setting().isVisible() && row.mouseClicked(mouseX, mouseY, button)) {
+               return true;
+            }
+         }
+
+         return true;
+      } else if (!this.isHeaderHovered(mouseX, mouseY)) {
+         return false;
+      } else {
+         if (button == 0) {
+            this.module.toggle();
+            ConfigManager.save(NightClient.modules());
+         } else if (button == 1 && !this.rows.isEmpty()) {
+            this.expanded = !this.expanded;
+         }
+
+         return true;
+      }
+   }
+
+   public void mouseDragged(double mouseX, double mouseY, int button) {
+      if (this.expanded) {
+         for (SettingRow row : this.rows) {
+            if (row.setting().isVisible()) {
+               row.mouseDragged(mouseX, mouseY, button);
+            }
+         }
+      }
+   }
+
+   public void mouseReleased() {
+      for (SettingRow row : this.rows) {
+         row.mouseReleased();
+      }
+   }
+
+   public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+      for (SettingRow row : this.rows) {
+         if (row.setting().isVisible() && row.keyPressed(keyCode, scanCode, modifiers)) {
+            return true;
+         }
+      }
+
+      return false;
+   }
+
+   public boolean charTyped(char chr) {
+      for (SettingRow row : this.rows) {
+         if (row.setting().isVisible() && row.charTyped(chr)) {
+            return true;
+         }
+      }
+
+      return false;
+   }
+
+   public void resetAnimations() {
+      this.expand.set(this.expanded ? this.settingsHeight() : 0.0F);
+      this.hover.set(0.0F);
+      this.enable.set(this.module.isEnabled() ? 1.0F : 0.0F);
+   }
+}
