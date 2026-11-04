@@ -38,11 +38,6 @@ public final class StringRow extends SettingRow {
    }
 
    @Override
-   public boolean capturingInput() {
-      return this.focused;
-   }
-
-   @Override
    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
       if (!this.focused) {
          return false;

@@ -9,153 +9,169 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.DrawContext;
 
-/** Küçük, sürüklenebilir kategori penceresi. */
 public final class CategoryWindow {
-   public static final int WIDTH = 140;
-   public static final int HEADER = 20;
+   public static final int WIDTH = 176;
+   public static final int HEADER = 22;
+   private static final float DRAG_SMOOTHING = 0.35F;
    private final Category category;
    private final List<ModuleButton> buttons = new ArrayList<>();
    private float x;
    private float y;
-   private float scroll;
-   private float maxHeight = 260.0F;
+   private float targetX;
+   private float targetY;
    private boolean dragging;
-   private float dragDX;
-   private float dragDY;
+   private float dragOffsetX;
+   private float dragOffsetY;
 
    public CategoryWindow(Category category, float x, float y) {
       this.category = category;
       this.x = x;
       this.y = y;
+      this.targetX = x;
+      this.targetY = y;
 
       for (Module module : NightClient.byCategory(category)) {
-         this.buttons.add(new ModuleButton(module));
+         this.buttons.add(new ModuleButton(this, module));
       }
    }
 
-   public void setPosition(float x, float y) {
+   public Category category() {
+      return this.category;
+   }
+
+   public float x() {
+      return this.x;
+   }
+
+   public float y() {
+      return this.y;
+   }
+
+   public void moveTo(float x, float y) {
       this.x = x;
       this.y = y;
+      this.targetX = x;
+      this.targetY = y;
    }
 
-   public void setMaxHeight(float maxHeight) {
-      this.maxHeight = maxHeight;
-   }
+   public float contentHeight() {
+      float height = 22.0F;
+      if (this.buttons.isEmpty()) {
+         return height + 24.0F;
+      } else {
+         for (ModuleButton button : this.buttons) {
+            height += button.height();
+         }
 
-   private float bodyHeight() {
-      float h = 3.0F;
-
-      for (ModuleButton b : this.buttons) {
-         h += b.height();
-      }
-
-      return h + 3.0F;
-   }
-
-   private float visibleBody() {
-      return Math.min(this.bodyHeight(), this.maxHeight - (float)HEADER);
-   }
-
-   public float totalHeight() {
-      return (float)HEADER + this.visibleBody();
-   }
-
-   private void place() {
-      float maxScroll = Math.max(0.0F, this.bodyHeight() - this.visibleBody());
-      this.scroll = Math.max(0.0F, Math.min(maxScroll, this.scroll));
-      float yy = this.y + (float)HEADER + 3.0F - this.scroll;
-
-      for (ModuleButton b : this.buttons) {
-         b.setBounds(this.x, yy, (float)WIDTH);
-         yy += b.height();
+         return height + 4.0F;
       }
    }
 
-   public void render(DrawContext context, int mouseX, int mouseY, float delta, float alpha) {
-      float h = this.totalHeight();
-      Render2D.roundedRect(context, this.x - 1.0F, this.y - 1.0F, (float)WIDTH + 2.0F, h + 2.0F, 8.0F, Theme.scaleAlpha(0xFF000000, alpha * 0.35F));
-      Render2D.roundedRect(context, this.x, this.y, (float)WIDTH, h, 7.0F, Theme.scaleAlpha(0xFF0F0F14, alpha));
-      Render2D.roundedOutline(context, this.x, this.y, (float)WIDTH, h, 7.0F, 1.0F, Theme.scaleAlpha(0xFF23232C, alpha));
+   private void updateOffsets() {
+      float offset = 26.0F;
 
-      // başlık: yumuşak degrade çizgi + başlık yazısı
-      for (int i = 0; i < WIDTH - 12; i += 2) {
-         float t = (float)i / (float)(WIDTH - 12);
-         int c = Theme.withAlpha(Theme.ACCENT, (int)(220.0F * (1.0F - t)));
-         context.fill((int)(this.x + 6.0F) + i, (int)(this.y + (float)HEADER - 2.0F), (int)(this.x + 6.0F) + i + 2, (int)(this.y + (float)HEADER - 1.0F), Theme.scaleAlpha(c, alpha));
+      for (ModuleButton button : this.buttons) {
+         button.setOffsetY(offset);
+         offset += button.height();
+      }
+   }
+
+   public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+      if (this.dragging) {
+         this.x = this.x + (this.targetX - this.x) * 0.35F;
+         this.y = this.y + (this.targetY - this.y) * 0.35F;
       }
 
-      Render2D.circle(context, this.x + 11.0F, this.y + 9.5F, 2.0F, Theme.scaleAlpha(Theme.ACCENT, alpha));
-      Render2D.text(context, this.category.label, this.x + 18.0F, this.y + 6.0F, Theme.scaleAlpha(0xFFE8E8F0, alpha), true);
+      this.updateOffsets();
+      float height = this.contentHeight();
+      Render2D.roundedRect(context, this.x + 2.0F, this.y + 6.0F, 172.0F, height - 6.0F, 8.0F, 2046820352);
+      Render2D.roundedRect(context, this.x, this.y, 176.0F, height, 8.0F, Theme.PANEL);
+      Render2D.roundedRect(context, this.x, this.y, 176.0F, 22.0F, 8.0F, Theme.HEADER);
+      context.fill((int)this.x, (int)(this.y + 22.0F - 6.0F), (int)(this.x + 176.0F), (int)(this.y + 22.0F + 8.0F), Theme.HEADER);
+      context.fill((int)this.x + 10, (int)(this.y + 22.0F), (int)(this.x + 176.0F) - 10, (int)(this.y + 22.0F) + 2, Theme.ACCENT_DIM);
+      Render2D.roundedOutline(context, this.x, this.y, 176.0F, height, 8.0F, 1.5F, -14474452);
+      Render2D.text(context, this.category.label, this.x + 12.0F, this.y + 7.0F, Theme.ACCENT);
       String count = Integer.toString(this.buttons.size());
-      Render2D.text(context, count, this.x + (float)WIDTH - 9.0F - (float)Render2D.textWidth(count), this.y + 6.0F, Theme.scaleAlpha(0xFF55555F, alpha));
+      Render2D.text(context, count, this.x + 176.0F - 12.0F - (float)Render2D.textWidth(count), this.y + 7.0F, -8750457);
+      context.enableScissor((int)this.x, (int)(this.y + 22.0F + 2.0F), (int)(this.x + 176.0F), (int)(this.y + height - 2.0F));
+      if (this.buttons.isEmpty()) {
+         Render2D.textCentered(context, "no modules yet", this.x + 88.0F, this.y + 22.0F + 10.0F, -8750457);
+      }
 
-      this.place();
-      context.enableScissor((int)this.x, (int)(this.y + (float)HEADER), (int)(this.x + (float)WIDTH), (int)(this.y + h - 1.0F));
-      int my = mouseY >= (int)(this.y + (float)HEADER) && (float)mouseY <= this.y + h ? mouseY : -9999;
-      for (ModuleButton b : this.buttons) {
-         b.render(context, mouseX, my, delta, alpha);
+      float offset = 26.0F;
+
+      for (ModuleButton button : this.buttons) {
+         button.setOffsetY(offset);
+         button.render(context, mouseX, mouseY, delta);
+         offset += button.height();
       }
 
       context.disableScissor();
    }
 
-   private boolean inside(double mx, double my) {
-      return mx >= (double)this.x && mx <= (double)(this.x + (float)WIDTH) && my >= (double)this.y && my <= (double)(this.y + this.totalHeight());
-   }
-
    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-      if (!this.inside(mouseX, mouseY)) {
+      this.updateOffsets();
+      boolean inside = mouseX >= (double)this.x
+         && mouseX <= (double)(this.x + 176.0F)
+         && mouseY >= (double)this.y
+         && mouseY <= (double)(this.y + this.contentHeight());
+      if (!inside) {
          return false;
-      }
-
-      if (mouseY < (double)(this.y + (float)HEADER)) {
+      } else if (mouseY <= (double)(this.y + 22.0F)) {
          if (button == 0) {
             this.dragging = true;
-            this.dragDX = (float)mouseX - this.x;
-            this.dragDY = (float)mouseY - this.y;
+            this.dragOffsetX = (float)mouseX - this.x;
+            this.dragOffsetY = (float)mouseY - this.y;
+            return true;
+         } else {
+            return true;
+         }
+      } else {
+         for (ModuleButton moduleButton : this.buttons) {
+            if (moduleButton.mouseClicked(mouseX, mouseY, button)) {
+               return true;
+            }
          }
 
          return true;
       }
-
-      this.place();
-      for (ModuleButton b : this.buttons) {
-         if (b.mouseClicked(mouseX, mouseY, button)) {
-            return true;
-         }
-      }
-
-      return true;
    }
 
    public void mouseDragged(double mouseX, double mouseY, int button) {
       if (this.dragging && button == 0) {
-         this.x = (float)mouseX - this.dragDX;
-         this.y = (float)mouseY - this.dragDY;
+         this.targetX = (float)mouseX - this.dragOffsetX;
+         this.targetY = (float)mouseY - this.dragOffsetY;
       } else {
-         for (ModuleButton b : this.buttons) {
-            b.mouseDragged(mouseX, mouseY, button);
+         for (ModuleButton moduleButton : this.buttons) {
+            moduleButton.mouseDragged(mouseX, mouseY, button);
          }
       }
    }
 
-   public void mouseReleased() {
-      this.dragging = false;
+   public void mouseReleased(double mouseX, double mouseY, int button) {
+      if (button == 0) {
+         this.dragging = false;
 
-      for (ModuleButton b : this.buttons) {
-         b.mouseReleased();
+         for (ModuleButton button_ : this.buttons) {
+            button_.mouseReleased();
+         }
       }
    }
 
    public void mouseScrolled(double mouseX, double mouseY, double amount) {
-      if (this.inside(mouseX, mouseY)) {
-         this.scroll -= (float)(amount * 16.0);
+      if (!(mouseX < (double)this.x)
+         && !(mouseX > (double)(this.x + 176.0F))
+         && !(mouseY < (double)this.y)
+         && !(mouseY > (double)(this.y + this.contentHeight()))) {
+         float scroll = (float)(amount * 10.0);
+         this.targetY += scroll;
+         this.y += scroll;
       }
    }
 
    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-      for (ModuleButton b : this.buttons) {
-         if (b.keyPressed(keyCode, scanCode, modifiers)) {
+      for (ModuleButton button : this.buttons) {
+         if (button.keyPressed(keyCode, scanCode, modifiers)) {
             return true;
          }
       }
@@ -164,8 +180,8 @@ public final class CategoryWindow {
    }
 
    public boolean charTyped(char chr) {
-      for (ModuleButton b : this.buttons) {
-         if (b.charTyped(chr)) {
+      for (ModuleButton button : this.buttons) {
+         if (button.charTyped(chr)) {
             return true;
          }
       }
@@ -173,9 +189,17 @@ public final class CategoryWindow {
       return false;
    }
 
+   public void collapseOthers(ModuleButton keep) {
+      for (ModuleButton button : this.buttons) {
+         if (button != keep) {
+            button.setExpanded(false);
+         }
+      }
+   }
+
    public void resetAnimations() {
-      for (ModuleButton b : this.buttons) {
-         b.resetAnimations();
+      for (ModuleButton button : this.buttons) {
+         button.resetAnimations();
       }
    }
 }

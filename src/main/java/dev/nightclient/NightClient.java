@@ -6,6 +6,7 @@ import dev.nightclient.module.ModuleManager;
 import dev.nightclient.module.modules.client.Fps15;
 import dev.nightclient.module.modules.client.Fps25;
 import dev.nightclient.util.ConfigManager;
+import dev.nightclient.util.PerfBoost;
 import java.util.List;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -47,7 +48,10 @@ public class NightClient implements ClientModInitializer {
          friends.setEnabledSilently(false);
       }
 
-      ClientTickEvents.END_CLIENT_TICK.register((EndTick)client -> ModuleManager.tick());
+      ClientTickEvents.END_CLIENT_TICK.register((EndTick)client -> {
+         PerfBoost.apply(client);
+         ModuleManager.tick();
+      });
       HudRenderCallback.EVENT.register((HudRenderCallback)(ctx, tickDelta) -> ModuleManager.renderHUD(ctx, tickDelta));
    }
 }

@@ -41,11 +41,6 @@ public final class KeyRow extends SettingRow {
    }
 
    @Override
-   public boolean capturingInput() {
-      return this.keySetting.isListening();
-   }
-
-   @Override
    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
       if (!this.keySetting.isListening()) {
          return false;

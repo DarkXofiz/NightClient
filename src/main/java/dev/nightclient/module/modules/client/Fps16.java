@@ -23,7 +23,7 @@ public final class Fps16 extends Module {
    private final ButtonSetting editor = new ButtonSetting("Edit HUD", this::openEditor).instant();
 
    public Fps16() {
-      super("HUD", "On-screen overlay", Category.HUD);
+      super("HUD", "On-screen overlay", Category.CLIENT);
       this.addSettings(new Setting[]{this.watermark, this.fps, this.coords, this.cps, this.ping, this.clock, this.moduleList, this.editor});
    }
 

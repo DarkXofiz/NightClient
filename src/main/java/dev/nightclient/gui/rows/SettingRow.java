@@ -67,10 +67,6 @@ public abstract class SettingRow {
    public void mouseReleased() {
    }
 
-   public boolean capturingInput() {
-      return false;
-   }
-
    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
       return false;
    }

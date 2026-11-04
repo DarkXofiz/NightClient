@@ -18,7 +18,7 @@ Bu fork yalnızca özel kullanım içindir; yayınlamadan önce orijinal yazarı
 
 ## ClickGUI (ThunderHack tarzı)
 
-- Combat ve HUD için iki küçük sürüklenebilir pencere
+- Orijinal Classic/Panel ClickGUI, her modülde Bind (tuş atama) satırı
 - Sol tık: modülü aç/kapa — Sağ tık: ayarları aç/kapa — Tekerlek: kaydır
 
 

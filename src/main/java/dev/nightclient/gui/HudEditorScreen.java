@@ -18,7 +18,7 @@ public final class HudEditorScreen extends Screen {
    private double grabY;
 
    public HudEditorScreen() {
-      super(Text.literal("nightclient hud"));
+      super(Text.literal("NightClient hud"));
    }
 
    public void render(DrawContext context, int mouseX, int mouseY, float delta) {

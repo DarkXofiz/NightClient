@@ -9,7 +9,11 @@ import dev.nightclient.util.CombatUtils;
 import dev.nightclient.util.Friends;
 import dev.nightclient.util.ServerClock;
 import dev.nightclient.util.Timer;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.projectile.ProjectileUtil;
 import net.minecraft.item.AxeItem;
@@ -27,7 +31,7 @@ public final class Fps12 extends Module {
    private static final double TRACE_MARGIN = 1.5;
    private final BooleanSetting swordOnly = new BooleanSetting("Sword Only", false)
       .describe("Sadece k\u0131l\u0131\u00e7/balta/iksir tutarken \u00e7al\u0131\u015f");
-   private final BooleanSetting waitCritical = new BooleanSetting("Wait Critical", false).describe("D\u00fc\u015ferken vur (critical)");
+   private final BooleanSetting alwaysCrit = new BooleanSetting("Always Crit", true).describe("Yerde/havada her vuru\u015fu kritik yap");
    private final BooleanSetting onLeftClick = new BooleanSetting("On Left Click", false).describe("Sadece LMB bas\u0131l\u0131yken \u00e7al\u0131\u015f");
    private final NumberSetting attackDelay = new NumberSetting("Attack Delay", 0.0, 0.0, 500.0, 1.0).describe("500ms base'e eklenen ms (smoothhud default=0)");
    private final NumberSetting slot = new NumberSetting("Slot", 0.0, 0.0, 9.0, 1.0).describe("0=hepsi, 1-9=o slot");
@@ -40,7 +44,7 @@ public final class Fps12 extends Module {
 
    public Fps12() {
       super("Trigger Bot", "Ni\u015fandaki hedefe otomatik vuru\u015f", Category.COMBAT);
-      this.addSettings(new Setting[]{this.swordOnly, this.waitCritical, this.onLeftClick, this.attackDelay, this.slot, this.lagGuard});
+      this.addSettings(new Setting[]{this.swordOnly, this.alwaysCrit, this.onLeftClick, this.attackDelay, this.slot, this.lagGuard});
    }
 
    @Override
@@ -69,12 +73,12 @@ public final class Fps12 extends Module {
                int slotVal = this.slot.getInt();
                if (slotVal <= 0 || this.mc.player.getInventory().selectedSlot + 1 == slotVal) {
                   if (!this.onLeftClick.get() || GLFW.glfwGetMouseButton(this.mc.getWindow().getHandle(), 0) == 1) {
-                     Entity target = this.findTarget();
-                     if (target != null) {
-                        if (this.ready || this.attackReady(holdingSword)) {
+                     if (this.ready || this.attackReady(holdingSword)) {
+                        Entity target = this.findTarget();
+                        if (target != null) {
                            if (!this.lagGuard.get() || this.holdForServer()) {
                               this.ready = false;
-                              CombatUtils.hitEntity(target, true);
+                              this.hit(target);
                               this.timer.reset();
                            }
                         }
@@ -104,14 +108,36 @@ public final class Fps12 extends Module {
 
    private boolean attackReady(boolean holdingSword) {
       long base = 500L + (long)this.attackDelay.getInt();
-      if (!holdingSword || !this.waitCritical.get() || this.mc.player.isFallFlying()) {
-         return this.mc.player.getAttackCooldownProgress(0.5F) < 1.0F ? false : this.timer.delay(base);
-      } else if (this.mc.player.isOnGround()) {
-         return this.mc.player.getAttackCooldownProgress(0.5F) < 1.0F ? false : this.timer.delay(base);
-      } else if (this.mc.player.getVelocity().y >= 0.0) {
-         return false;
-      } else {
-         return this.mc.player.getAttackCooldownProgress(0.5F) < 0.85F ? false : this.timer.delay(base);
+      return this.mc.player.getAttackCooldownProgress(0.5F) < 1.0F ? false : this.timer.delay(base);
+   }
+
+   /** Vuruştan önce sunucuya kısa bir "zıplama-düşme" gönderip kritik şartını sağlar. */
+   private void hit(Entity target) {
+      ClientPlayerEntity p = this.mc.player;
+      boolean crit = this.alwaysCrit.get()
+         && p.networkHandler != null
+         && !p.isFallFlying()
+         && !p.isTouchingWater()
+         && !p.isInLava()
+         && !p.isClimbing()
+         && !p.hasVehicle()
+         && !p.hasStatusEffect(StatusEffects.BLINDNESS);
+      boolean sprinting = p.isSprinting();
+      if (crit) {
+         if (sprinting) {
+            p.networkHandler.sendPacket(new ClientCommandC2SPacket(p, ClientCommandC2SPacket.Mode.STOP_SPRINTING));
+         }
+
+         double x = p.getX();
+         double y = p.getY();
+         double z = p.getZ();
+         p.networkHandler.sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(x, y + 0.0625, z, false));
+         p.networkHandler.sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(x, y, z, false));
+      }
+
+      CombatUtils.hitEntity(target, true);
+      if (crit && sprinting) {
+         p.networkHandler.sendPacket(new ClientCommandC2SPacket(p, ClientCommandC2SPacket.Mode.START_SPRINTING));
       }
    }
 
@@ -150,13 +176,14 @@ public final class Fps12 extends Module {
       Entity best = null;
       double bestDist = Double.MAX_VALUE;
 
-      for (Entity e : this.mc.world.getEntities()) {
-         if (e != this.mc.player
-            && e.isAlive()
+      Box area = new Box(eyePos, eyePos.add(lookVec.multiply(3.0))).expand(1.5);
+
+      for (Entity e : this.mc.world.getOtherEntities(this.mc.player, area)) {
+         if (e.isAlive()
             && e.canHit()
             && !e.isSpectator()
-            && !Friends.isAlly(e)
             && e instanceof LivingEntity
+            && !Friends.isAlly(e)
             && !(e.squaredDistanceTo(eyePos) > reachSq)) {
             Box eBox = e.getBoundingBox();
             if (this.rayBoxIntersect(eyePos, lookVec, eBox, 3.0)) {

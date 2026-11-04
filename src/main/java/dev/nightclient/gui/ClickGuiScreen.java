@@ -4,19 +4,19 @@ import dev.nightclient.NightClient;
 import dev.nightclient.module.Category;
 import dev.nightclient.module.modules.client.Fps15;
 import dev.nightclient.render.Animation;
+import dev.nightclient.render.Render2D;
 import dev.nightclient.render.Toasts;
-import dev.nightclient.util.ConfigManager;
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.text.Text;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.text.Text;
 
-/** Combat ve HUD için iki küçük kategori penceresi. Sol tık: aç/kapa, sağ tık: ayarlar. */
 public final class ClickGuiScreen extends Screen {
-   private static final int GAP = 12;
+   private static final int GAP = 10;
+   private static final int MARGIN = 12;
    private final List<CategoryWindow> windows = new ArrayList<>();
-   private final Animation open = new Animation(0.0F);
+   private final Animation fadeIn = new Animation(0.0F);
 
    public ClickGuiScreen() {
       super(Text.literal("NightClient"));
@@ -24,20 +24,50 @@ public final class ClickGuiScreen extends Screen {
 
    protected void init() {
       this.windows.clear();
-      Category[] cats = Category.values();
-      float total = (float)(cats.length * CategoryWindow.WIDTH + (cats.length - 1) * GAP);
-      float x = ((float)this.width - total) / 2.0F;
-      float y = Math.max(14.0F, ((float)this.height - 220.0F) / 2.0F);
 
-      for (Category category : cats) {
-         CategoryWindow window = new CategoryWindow(category, x, y);
-         window.setMaxHeight(Math.max(120.0F, (float)this.height - y - 14.0F));
-         window.resetAnimations();
-         this.windows.add(window);
-         x += (float)(CategoryWindow.WIDTH + GAP);
+      for (Category category : Category.values()) {
+         this.windows.add(new CategoryWindow(category, 0.0F, 0.0F));
       }
 
-      this.open.set(0.0F);
+      this.layout();
+      this.fadeIn.set(0.0F);
+   }
+
+   private void layout() {
+      int perRow = Math.max(1, (this.width - 24 + 10) / 186);
+      perRow = Math.min(perRow, this.windows.size());
+      List<Float> rowHeights = new ArrayList<>();
+
+      for (int start = 0; start < this.windows.size(); start += perRow) {
+         float rowHeight = 0.0F;
+
+         for (int i = start; i < Math.min(start + perRow, this.windows.size()); i++) {
+            rowHeight = Math.max(rowHeight, this.windows.get(i).contentHeight());
+         }
+
+         rowHeights.add(rowHeight);
+      }
+
+      float total = (float)(10 * (rowHeights.size() - 1));
+
+      for (float rowHeight : rowHeights) {
+         total += rowHeight;
+      }
+
+      float y = Math.max(12.0F, ((float)this.height - total) / 2.0F);
+
+      for (int row = 0; row < rowHeights.size(); row++) {
+         int start = row * perRow;
+         int count = Math.min(perRow, this.windows.size() - start);
+         float rowWidth = (float)(count * 176 + (count - 1) * 10);
+         float x = ((float)this.width - rowWidth) / 2.0F;
+
+         for (int column = 0; column < count; column++) {
+            this.windows.get(start + column).moveTo(x + (float)(column * 186), y);
+         }
+
+         y += rowHeights.get(row) + 10.0F;
+      }
    }
 
    @Override
@@ -45,11 +75,15 @@ public final class ClickGuiScreen extends Screen {
    }
 
    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-      float alpha = this.open.animate(1.0F, 12.0F);
-      context.fill(0, 0, this.width, this.height, ((int)(alpha * 110.0F) & 0xFF) << 24);
+      float alpha = this.fadeIn.animate(1.0F, 10.0F);
+      context.fill(0, 0, this.width, this.height, ((int)(alpha * 144.0F) & 0xFF) << 24);
+      float glow = alpha * 8.0F;
+      Render2D.roundedRect(
+         context, (float)this.width / 2.0F - 260.0F, (float)this.height / 2.0F - 220.0F, 520.0F, 440.0F, 16.0F, (int)glow << 24 | 328968
+      );
 
       for (CategoryWindow window : this.windows) {
-         window.render(context, mouseX, mouseY, delta, alpha);
+         window.render(context, mouseX, mouseY, delta);
       }
 
       super.render(context, mouseX, mouseY, delta);
@@ -82,16 +116,15 @@ public final class ClickGuiScreen extends Screen {
 
    public boolean mouseReleased(double mouseX, double mouseY, int button) {
       for (CategoryWindow window : this.windows) {
-         window.mouseReleased();
+         window.mouseReleased(mouseX, mouseY, button);
       }
 
-      ConfigManager.save(NightClient.modules());
       return super.mouseReleased(mouseX, mouseY, button);
    }
 
-   public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+   public boolean mouseScrolled(double mouseX, double mouseY, double verticalAmount) {
       for (CategoryWindow window : this.windows) {
-         window.mouseScrolled(mouseX, mouseY, amount);
+         window.mouseScrolled(mouseX, mouseY, verticalAmount);
       }
 
       return true;
@@ -131,8 +164,6 @@ public final class ClickGuiScreen extends Screen {
       if (module != null) {
          module.onScreenClosed();
       }
-
-      ConfigManager.save(NightClient.modules());
    }
 
    public boolean shouldPause() {

@@ -21,7 +21,7 @@ public final class Fps24 extends Module {
    private final ButtonSetting reset = new ButtonSetting("Reset colours", this::resetDefaults);
 
    public Fps24() {
-      super("GUI Colors", "Changes the click GUI palette", Category.HUD);
+      super("GUI Colors", "Changes the click GUI palette", Category.CLIENT);
       this.addSettings(new Setting[]{this.rainbow, this.hue, this.saturation, this.brightness, this.opacity, this.reset});
    }
 
