@@ -9,7 +9,7 @@ public final class Fps25 extends Module {
    private boolean closing;
 
    public Fps25() {
-      super("Friends", "Arkadas listesini ac \u2014 secim bu isimlere vurmaz", Category.CLIENT);
+      super("Friends", "Arkadas listesini ac \u2014 secim bu isimlere vurmaz", Category.HUD);
    }
 
    @Override

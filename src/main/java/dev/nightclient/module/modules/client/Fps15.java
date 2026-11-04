@@ -8,7 +8,7 @@ public final class Fps15 extends Module {
    private boolean closing;
 
    public Fps15() {
-      super("ClickGUI", "Opens the NightClient interface", Category.CLIENT);
+      super("ClickGUI", "Opens the NightClient interface", Category.HUD);
       this.key(-1);
    }
 

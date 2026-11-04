@@ -12,9 +12,9 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.DrawContext;
 
-/** ThunderHack tarzı modül kartı: sol tık = aç/kapa, sağ tık = ayarları aç. */
+/** Kompakt modül satırı: sol tık = aç/kapa, sağ tık = ayarlar. */
 public final class ModuleButton {
-   public static final int HEADER = 22;
+   public static final int HEADER = 18;
    private final Module module;
    private final List<SettingRow> rows = new ArrayList<>();
    private final Animation expand = new Animation(0.0F);
@@ -61,21 +61,11 @@ public final class ModuleButton {
          }
       }
 
-      return height > 0.0F ? height + 4.0F : 0.0F;
+      return height > 0.0F ? height + 3.0F : 0.0F;
    }
 
    public boolean isHeaderHovered(double mx, double my) {
       return mx >= (double)this.x && mx <= (double)(this.x + this.width) && my >= (double)this.y && my < (double)(this.y + (float)HEADER);
-   }
-
-   public boolean capturingInput() {
-      for (SettingRow row : this.rows) {
-         if (row.setting().isVisible() && row.capturingInput()) {
-            return true;
-         }
-      }
-
-      return false;
    }
 
    public void render(DrawContext context, int mouseX, int mouseY, float delta, float alpha) {
@@ -83,32 +73,37 @@ public final class ModuleButton {
       float on = this.enable.animate(this.module.isEnabled() ? 1.0F : 0.0F, 12.0F);
       this.expand.animate(this.expanded ? this.settingsHeight() : 0.0F, 14.0F);
       float total = this.height();
-      int base = Theme.mix(0xFF17171E, 0xFF1E1E27, h);
-      Render2D.roundedRect(context, this.x, this.y, this.width, total, 6.0F, Theme.scaleAlpha(base, alpha));
-      if (on > 0.01F) {
-         Render2D.roundedRect(context, this.x, this.y, this.width, total, 6.0F, Theme.scaleAlpha(Theme.withAlpha(Theme.ACCENT, (int)(38.0F * on)), alpha));
-         Render2D.roundedRect(context, this.x, this.y + 4.0F, 2.0F, (float)HEADER - 8.0F, 1.0F, Theme.scaleAlpha(Theme.ACCENT, alpha * on));
+
+      if (h > 0.02F || on > 0.02F) {
+         int bg = Theme.mix(Theme.withAlpha(0xFFFFFF, (int)(14.0F * h)), Theme.withAlpha(Theme.ACCENT, 34), on);
+         Render2D.roundedRect(context, this.x + 3.0F, this.y + 1.0F, this.width - 6.0F, total - 2.0F, 5.0F, Theme.scaleAlpha(bg, alpha));
       }
 
-      int nameColor = Theme.mix(Theme.mix(0xFF8A8A97, 0xFFE8E8F0, h), Theme.ACCENT, on);
-      Render2D.text(context, this.module.getName(), this.x + 9.0F, this.y + 7.0F, Theme.scaleAlpha(nameColor, alpha));
+      int nameColor = Theme.mix(Theme.mix(0xFF858592, 0xFFE8E8F0, h), 0xFFFFFFFF, on);
+      Render2D.text(context, this.module.getName(), this.x + 10.0F, this.y + 5.0F, Theme.scaleAlpha(nameColor, alpha));
+
+      // sağda küçük açma/kapama hapı
+      float pillW = 16.0F;
+      float pillX = this.x + this.width - pillW - 8.0F;
+      float pillY = this.y + 5.0F;
+      Render2D.roundedRect(context, pillX, pillY, pillW, 8.0F, 4.0F, Theme.scaleAlpha(Theme.mix(0xFF23232C, Theme.ACCENT, on), alpha));
+      Render2D.circle(context, pillX + 4.0F + 8.0F * on, pillY + 4.0F, 2.6F, Theme.scaleAlpha(Theme.mix(0xFF6A6A77, 0xFFFFFFFF, on), alpha));
+
       if (!this.rows.isEmpty()) {
-         float cx = this.x + this.width - 11.0F;
-         float cy = this.y + 11.0F;
-         int dot = Theme.scaleAlpha(this.expanded ? Theme.ACCENT : Theme.mix(0xFF5A5A66, 0xFFE8E8F0, h), alpha);
-         Render2D.circle(context, cx, cy - 3.5F, 1.4F, dot);
-         Render2D.circle(context, cx, cy, 1.4F, dot);
-         Render2D.circle(context, cx, cy + 3.5F, 1.4F, dot);
+         float cx = pillX - 8.0F;
+         int dot = Theme.scaleAlpha(this.expanded ? Theme.ACCENT : Theme.mix(0xFF4A4A55, 0xFFB0B0BC, h), alpha);
+         for (int i = 0; i < 3; i++) {
+            Render2D.circle(context, cx, this.y + 5.5F + (float)i * 3.5F, 1.0F, dot);
+         }
       }
 
       if (this.expand.get() > 0.5F) {
          context.enableScissor((int)this.x, (int)(this.y + (float)HEADER), (int)(this.x + this.width), (int)(this.y + total));
-         context.fill((int)(this.x + 8.0F), (int)(this.y + (float)HEADER - 1.0F), (int)(this.x + this.width - 8.0F), (int)(this.y + (float)HEADER), Theme.scaleAlpha(0xFF2A2A35, alpha));
-         float rowY = this.y + (float)HEADER + 2.0F;
+         float rowY = this.y + (float)HEADER;
 
          for (SettingRow row : this.rows) {
             if (row.setting().isVisible()) {
-               row.setBounds(this.x + 9.0F, rowY, this.width - 18.0F);
+               row.setBounds(this.x + 10.0F, rowY, this.width - 20.0F);
                row.render(context, mouseX, mouseY, delta);
                rowY += 22.0F;
             }

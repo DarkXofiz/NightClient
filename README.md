@@ -18,9 +18,9 @@ Bu fork yalnızca özel kullanım içindir; yayınlamadan önce orijinal yazarı
 
 ## ClickGUI (ThunderHack tarzı)
 
-- Sol kategori çubuğu, üstte arama kutusu, sağda iki sütunlu modül kartları
-- Sol tık: modülü aç/kapa — Sağ tık: ayarları aç/kapa
-- Sol üst başlık alanından pencere sürüklenir, fare tekerleği ile kaydırılır
+- Combat ve HUD için iki küçük sürüklenebilir pencere
+- Sol tık: modülü aç/kapa — Sağ tık: ayarları aç/kapa — Tekerlek: kaydır
+
 
 ## Build
 

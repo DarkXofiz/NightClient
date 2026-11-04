@@ -2,9 +2,7 @@ package dev.nightclient.module;
 
 public enum Category {
    COMBAT("Combat"),
-   MISC("Misc"),
-   RENDER("Render"),
-   CLIENT("Client");
+   HUD("HUD");
 
    public final String label;
 
