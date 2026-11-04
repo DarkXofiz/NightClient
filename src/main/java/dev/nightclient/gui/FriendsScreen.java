@@ -59,6 +59,25 @@ public final class FriendsScreen extends Screen {
    }
 
    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+      try {
+         this.renderInner(context, mouseX, mouseY, delta);
+      } catch (Throwable t) {
+         this.shutDown();
+      }
+   }
+
+   private void shutDown() {
+      Fps25 module = NightClient.get(Fps25.class);
+      if (module != null) {
+         module.setEnabledSilently(false);
+      }
+
+      if (this.client != null) {
+         this.client.setScreen(null);
+      }
+   }
+
+   private void renderInner(DrawContext context, int mouseX, int mouseY, float delta) {
       context.fill(0, 0, this.width, this.height, -1778384896);
       FriendsScreen.Geo g = this.geo();
       float x = g.x();
@@ -134,6 +153,15 @@ public final class FriendsScreen extends Screen {
    }
 
    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+      try {
+         return this.clickInner(mouseX, mouseY, button);
+      } catch (Throwable t) {
+         this.shutDown();
+         return true;
+      }
+   }
+
+   private boolean clickInner(double mouseX, double mouseY, int button) {
       FriendsScreen.Geo g = this.geo();
       List<String> names = Friends.names();
 
@@ -161,6 +189,15 @@ public final class FriendsScreen extends Screen {
    }
 
    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+      try {
+         return this.keyInner(keyCode, scanCode, modifiers);
+      } catch (Throwable t) {
+         this.shutDown();
+         return true;
+      }
+   }
+
+   private boolean keyInner(int keyCode, int scanCode, int modifiers) {
       if (keyCode == 257 || keyCode == 335) {
          Friends.add(this.input.toString());
          this.input.setLength(0);

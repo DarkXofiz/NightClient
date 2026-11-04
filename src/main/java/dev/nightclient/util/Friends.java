@@ -88,7 +88,7 @@ public final class Friends {
          root.add("friends", array);
          Files.createDirectories(FILE.getParent());
          Files.writeString(FILE, GSON.toJson(root));
-      } catch (RuntimeException | IOException var3) {
+      } catch (Exception var3) {
       }
    }
 
@@ -106,12 +106,15 @@ public final class Friends {
                   NAMES.putIfAbsent(key(name), name.trim());
                }
             }
-         } catch (RuntimeException | IOException var4) {
+         } catch (Exception var4) {
          }
       }
    }
 
    static {
-      load();
+      try {
+         load();
+      } catch (Throwable ignored) {
+      }
    }
 }

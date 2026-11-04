@@ -1,11 +1,12 @@
 package dev.nightclient.module.modules.client;
 
+import dev.nightclient.NightClient;
 import dev.nightclient.gui.FriendsScreen;
 import dev.nightclient.module.Category;
 import dev.nightclient.module.Module;
+import net.minecraft.client.MinecraftClient;
 
 public final class Fps25 extends Module {
-   private boolean pending;
    private boolean closing;
 
    public Fps25() {
@@ -14,30 +15,41 @@ public final class Fps25 extends Module {
 
    @Override
    public void onEnable() {
-      if (this.mc.currentScreen != null && !(this.mc.currentScreen instanceof FriendsScreen)) {
-         this.pending = true;
-         this.mc.setScreen(null);
-      } else {
-         this.mc.setScreen(new FriendsScreen());
+      MinecraftClient client = this.getMC();
+      if (client == null) {
+         this.setEnabledSilently(false);
+         return;
       }
-   }
 
-   @Override
-   public void onBufferUpdate() {
-      if (this.pending) {
-         this.pending = false;
-         if (this.mc.currentScreen == null) {
-            this.mc.setScreen(new FriendsScreen());
-         }
+      // ClickGUI açıksa onu sessizce kapalı say: ekran değişirken ikinci bir setScreen(null) tetiklenmesin.
+      Fps15 gui = NightClient.get(Fps15.class);
+      if (gui != null) {
+         gui.setEnabledSilently(false);
       }
+
+      // Ekranı tıklama olayının içinde değil, bir sonraki tick'te aç (çökme sebebi buydu).
+      client.send(() -> {
+         try {
+            if (this.isEnabled()) {
+               client.setScreen(new FriendsScreen());
+            }
+         } catch (Throwable t) {
+            this.setEnabledSilently(false);
+            client.setScreen(null);
+         }
+      });
    }
 
    @Override
    public void onDisable() {
-      if (this.mc.currentScreen instanceof FriendsScreen) {
+      MinecraftClient client = this.getMC();
+      if (client != null && client.currentScreen instanceof FriendsScreen) {
          this.closing = true;
-         this.mc.setScreen(null);
-         this.closing = false;
+         try {
+            client.setScreen(null);
+         } finally {
+            this.closing = false;
+         }
       }
    }
 
