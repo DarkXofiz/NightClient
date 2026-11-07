@@ -40,7 +40,6 @@ public abstract class AimAssistModule extends Module {
    private Entity target;
    private Vec3d smoothedPoint;
    private long lastTime = -1L;
-   private int scanCounter;
 
    protected AimAssistModule(String name, String description) {
       super(name, description, Category.COMBAT);
@@ -67,7 +66,6 @@ public abstract class AimAssistModule extends Module {
       this.target = null;
       this.smoothedPoint = null;
       this.lastTime = -1L;
-      this.scanCounter = 0;
    }
 
    @Override
@@ -95,45 +93,31 @@ public abstract class AimAssistModule extends Module {
          Vec2f bestDelta = null;
          Entity stickyTarget = this.stickyTarget();
 
-         Entity current = this.target;
-         boolean currentValid = current != null
-            && !current.isRemoved()
-            && current.isAlive()
-            && eyePos.squaredDistanceTo(this.aimPoint(current)) <= reachSq;
-         boolean rescan = !currentValid || ++this.scanCounter >= 3;
-         if (!rescan) {
-            newTarget = current;
-            bestDelta = this.rotationTo(playerRot, eyePos, this.aimPoint(current));
-         } else {
-            this.scanCounter = 0;
-            Box area = new Box(eyePos, eyePos).expand(this.distance.getValue() + 1.0);
+         for (Entity e : this.mc.world.getEntities()) {
+            Vec3d point;
+            if (e != null
+               && e != this.mc.player
+               && e.isLiving()
+               && !e.isRemoved()
+               && !this.shouldIgnoreCorpse(e)
+               && this.inFov(e, (double)fovVal)
+               && (allowInvisible || !e.isInvisibleTo(this.mc.player))
+               && !e.isSpectator()
+               && !e.isInvulnerable()
+               && (!slotEnabled || this.mc.player.getInventory().selectedSlot + 1 == requiredSlot)
+               && this.entityAllowed(e)
+               && !(eyePos.squaredDistanceTo(point = this.aimPoint(e)) > reachSq)) {
+               Vec2f delta = this.rotationTo(playerRot, eyePos, point);
+               if (!(Math.abs(delta.y) > maxAngle) && (!lineOfSight || !this.raycastBlocked(eyePos, point))) {
+                  if (e == this.target || e == stickyTarget) {
+                     newTarget = e;
+                     bestDelta = delta;
+                     break;
+                  }
 
-            for (Entity e : this.mc.world.getOtherEntities(this.mc.player, area)) {
-               Vec3d point;
-               if (e != null
-                  && e != this.mc.player
-                  && e.isLiving()
-                  && !e.isRemoved()
-                  && !this.shouldIgnoreCorpse(e)
-                  && this.inFov(e, (double)fovVal)
-                  && (allowInvisible || !e.isInvisibleTo(this.mc.player))
-                  && !e.isSpectator()
-                  && !e.isInvulnerable()
-                  && (!slotEnabled || this.mc.player.getInventory().selectedSlot + 1 == requiredSlot)
-                  && this.entityAllowed(e)
-                  && !(eyePos.squaredDistanceTo(point = this.aimPoint(e)) > reachSq)) {
-                  Vec2f delta = this.rotationTo(playerRot, eyePos, point);
-                  if (!(Math.abs(delta.y) > maxAngle) && (!lineOfSight || !this.raycastBlocked(eyePos, point))) {
-                     if (e == this.target || e == stickyTarget) {
-                        newTarget = e;
-                        bestDelta = delta;
-                        break;
-                     }
-
-                     if (bestDelta == null || Math.abs(delta.y) < Math.abs(bestDelta.y)) {
-                        newTarget = e;
-                        bestDelta = delta;
-                     }
+                  if (bestDelta == null || Math.abs(delta.y) < Math.abs(bestDelta.y)) {
+                     newTarget = e;
+                     bestDelta = delta;
                   }
                }
             }
@@ -146,7 +130,7 @@ public abstract class AimAssistModule extends Module {
             boolean sameTarget = newTarget == this.target;
             this.target = newTarget;
             Vec3d predicted = this.predictPoint(newTarget, eyePos, dt, sameTarget);
-            Vec2f smoothed = this.smooth(this.rotationTo(playerRot, eyePos, predicted), maxAngle, lockSpeedVal, dt);
+            Vec2f smoothed = this.smooth(this.rotationTo(playerRot, eyePos, predicted), maxAngle, lockSpeedVal);
             this.mc.player.setPitch(this.mc.player.getPitch() + smoothed.x);
             this.mc.player.setYaw(this.mc.player.getYaw() + smoothed.y);
          }
@@ -237,21 +221,17 @@ public abstract class AimAssistModule extends Module {
       }
    }
 
-   private Vec2f smooth(Vec2f delta, float maxAngle, float lockSpeed, float dt) {
+   private Vec2f smooth(Vec2f delta, float maxAngle, float lockSpeed) {
       float x = delta.x;
       float y = delta.y;
       float len = MathHelper.sqrt(x * x + y * y);
       float maxMove = maxAngle * 0.26F;
-      float base = Math.min(0.95F, (len > maxMove ? 0.42F : (len > 0.35F ? 0.36F : 0.3F)) * lockSpeed);
-      // Kare hızından bağımsız: aynı hız 60 FPS'te de 240 FPS'te de aynı akıcılıkta.
-      float frames = Math.min(dt * 144.0F, 4.0F);
-      float factor = 1.0F - (float)Math.pow((double)(1.0F - base), (double)frames);
+      float factor = (len > maxMove ? 0.42F : (len > 0.35F ? 0.36F : 0.3F)) * lockSpeed;
       float mx = x * factor;
       float my = y * factor;
       float moveLen = MathHelper.sqrt(mx * mx + my * my);
-      float limit = maxMove * Math.max(frames, 1.0F);
-      if (moveLen > limit && moveLen > 0.0F) {
-         float scale = limit / moveLen;
+      if (moveLen > maxMove && moveLen > 0.0F) {
+         float scale = maxMove / moveLen;
          mx *= scale;
          my *= scale;
       }
