@@ -1,0 +1,10 @@
+{
+  "enable":     { "sounds": [ "nightclient:enable" ] },
+  "disable":    { "sounds": [ "nightclient:disable" ] },
+  "keypress":   { "sounds": [ "nightclient:keypress" ] },
+  "keyrelease": { "sounds": [ "nightclient:keyrelease" ] },
+  "boolean":    { "sounds": [ "nightclient:boolean" ] },
+  "scroll":     { "sounds": [ "nightclient:scroll" ] },
+  "swipein":    { "sounds": [ "nightclient:swipein" ] },
+  "swipeout":   { "sounds": [ "nightclient:swipeout" ] }
+}
